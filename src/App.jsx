@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react'
-import { Provider, useSelector, useDispatch } from 'react-redux'
-import { store, setProducts, setUser, setLoading } from './store/store'
+import { useSelector, useDispatch } from 'react-redux'
+import { selectProducts, selectCart, selectUser, selectLoading , selectError,  selectCartCount, selectTotalPrice } from './store/store' /*Добавила import */
+import { setProducts, addToCart, removeFromCart, updateQuantity, setUser, setLoading, setError, clearCart  } from './store/store' /*Добавила import */
 
 import './App.css'
 
 function App() {
   return (
-    <Provider store={store}>
       <div className="app">
         <Header />
         <div className="main-content">
@@ -14,14 +14,15 @@ function App() {
           <Cart />
         </div>
       </div>
-    </Provider>
   )
 }
 
 function ProductList() {
   const dispatch = useDispatch()
-  const products = useSelector((state) => state.app.products)
-  const loading = useSelector((state) => state.app.loading)
+  /* Добавление селекторов */
+  const products = useSelector(selectProducts)
+  const loading = useSelector(selectLoading)
+  const error = useSelector(selectError)
   
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
@@ -30,8 +31,8 @@ function ProductList() {
 
   useEffect(() => {
     dispatch(setLoading(true))
-    
-    setTimeout(() => {
+    const t = setTimeout(() => {
+      try {
       const mockProducts = [
         { id: 1, name: 'iPhone 14', price: 799, category: 'phones', image: 'https://via.placeholder.com/200', description: 'Новейший iPhone' },
         { id: 2, name: 'Samsung Galaxy S23', price: 699, category: 'phones', image: 'https://via.placeholder.com/200', description: 'Флагман Samsung' },
@@ -41,9 +42,17 @@ function ProductList() {
         { id: 6, name: 'Samsung Galaxy Tab', price: 399, category: 'tablets', image: 'https://via.placeholder.com/200', description: 'Планшет Samsung' }
       ]
       dispatch(setProducts(mockProducts))
+      dispatch(setError(null))
+      } catch (e) {
+        dispatch(setError('Не удалось загрузить товары'))
+      }  finally {
       dispatch(setLoading(false))
+      }
     }, 1000)
-  }, [dispatch])
+
+    /*Добавила очистку таймера */
+    return () => clearTimeout(t)
+  }, [dispatch]) 
 
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -67,6 +76,10 @@ function ProductList() {
     setSortBy(e.target.value)
   }
 
+  if (error) {
+    return <div className='error'>{error}</div>
+  }
+
   if (loading) {
     return <div className="loading">Загрузка товаров...</div>
   }
@@ -83,7 +96,10 @@ function ProductList() {
           />
         </div>
         
+        {/*Добавила  showFilter, чтобы кнопка работала*/}
         <div className="filter-controls">
+        {showFilters && (
+          <>
           <select value={selectedCategory} onChange={handleCategoryChange}>
             <option value="all">Все категории</option>
             <option value="phones">Телефоны</option>
@@ -95,11 +111,12 @@ function ProductList() {
             <option value="name">По названию</option>
             <option value="price">По цене</option>
           </select>
+          </> )}
           
           <button onClick={() => setShowFilters(!showFilters)}>
             {showFilters ? 'Скрыть фильтры' : 'Показать фильтры'}
           </button>
-        </div>
+      </div>
       </div>
 
       <div className="products">
@@ -110,10 +127,7 @@ function ProductList() {
             <p>{product.description}</p>
             <div className="price">${product.price}</div>
             <button 
-              onClick={() => {
-                const action = { type: 'app/addToCart', payload: product }
-                dispatch(action)
-              }}
+              onClick={() => dispatch(addToCart(product))}       
             >
               Добавить в корзину
             </button>
@@ -124,32 +138,33 @@ function ProductList() {
   )
 }
 
+
+
 function Cart() {
+
   const dispatch = useDispatch()
-  const cart = useSelector((state) => state.app.cart)
-  const cartCount = useSelector((state) => state.app.cartCount)
-  const totalPrice = useSelector((state) => state.app.totalPrice)
-  
+
+  /*Добавила селекторы*/
+  const cart = useSelector(selectCart)             
+  const cartCount = useSelector(selectCartCount)  
+  const totalPrice = useSelector(selectTotalPrice)
+ 
   const [isOpen, setIsOpen] = useState(false)
   const [showCheckout, setShowCheckout] = useState(false)
 
   const handleRemoveItem = (id) => {
-    dispatch({ type: 'app/removeFromCart', payload: id })
+    dispatch(removeFromCart(id))
   }
 
   const handleUpdateQuantity = (id, quantity) => {
-    if (quantity <= 0) {
-      handleRemoveItem(id)
-      return
-    }
-    dispatch({ type: 'app/updateQuantity', payload: { id, quantity } })
+    dispatch(updateQuantity({id, quantity}))
   }
 
   const handleCheckout = () => {
     setShowCheckout(true)
     setTimeout(() => {
       alert('Заказ оформлен!')
-      dispatch({ type: 'app/clearCart' })
+      dispatch(clearCart())
       setShowCheckout(false)
       setIsOpen(false)
     }, 1000)
@@ -220,16 +235,17 @@ function Cart() {
 
 function Header() {
   const dispatch = useDispatch()
-  const user = useSelector((state) => state.app.user)
+  const user = useSelector(selectUser)
   
   useEffect(() => {
-    setTimeout(() => {
+    const t = setTimeout(() => {
       dispatch(setUser({ 
         id: 1, 
-        name: 'Иван Иванов', 
+        name: 'Дария', 
         email: 'ivan@example.com' 
       }))
     }, 500)
+    return () => clearTimeout(t)
   }, [dispatch])
 
   return (
